@@ -13,10 +13,14 @@ type version struct {
 
 // Version information
 var Version = version{
-	1, 5, 0,
-	"dev",
+	1, 8, 0,
+	"",
 }
 
 func (v *version) String() string {
-	return fmt.Sprintf("discord bot: %d.%d.%d-%s\n%s", v.Major, v.Minor, v.Patch, v.Label, fwew.Version.String())
+	var label string
+	if v.Label != "" {
+		label = "-" + v.Label
+	}
+	return fmt.Sprintf("discord bot: %d.%d.%d%s\n%s", v.Major, v.Minor, v.Patch, label, fwew.Version.String())
 }

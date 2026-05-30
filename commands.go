@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -60,7 +59,12 @@ func list(ctx *dgc.Ctx, firstArg int) {
 	arguments := ctx.Arguments
 	for i := firstArg; i < arguments.Amount(); i++ {
 		argument := arguments.Get(i)
-		args = append(args, argument.Raw())
+		newArg := argument.Raw()
+		if newArg[len(newArg)-1] == ',' {
+			newArg = newArg + arguments.Get(i+1).Raw()
+			i++
+		}
+		args = append(args, newArg)
 	}
 
 	words, err := fwew.List(args, uint8(1))
@@ -85,8 +89,10 @@ func lenition(ctx *dgc.Ctx) {
 		if lenition[1] == "" {
 			lenition[1] = "(disappears, except before ll or rr)"
 		}
-		output += "→ " + lenition[1] + "\n"
+		output += "→ " + lenition[1] + "\n\n"
 	}
+	output += "leniting prefixes: me+, pxe+, ay+, pe+\n"
+	output += "leniting adpositions: fpi, ìlä, lisre, mì, nuä, pxisre, ro, sko, sre, wä\n"
 	output += "```"
 	sendDiscordMessageEmbed(ctx, output, false)
 }
@@ -104,15 +110,16 @@ func shortLenition(ctx *dgc.Ctx) {
 		if lenition[1] == "" {
 			lenition[1] = "(disappears, except before ll or rr)"
 		}
-		output += " → " + lenition[1] + "\n"
+		output += " → " + lenition[1] + "\n\n"
 	}
+	output += "leniting prefixes: me+, pxe+, ay+, pe+\n"
+	output += "leniting adpositions: fpi, ìlä, lisre, mì, nuä, pxisre, ro, sko, sre, wä\n"
 	output += "```"
 	sendDiscordMessageEmbed(ctx, output, false)
 }
 
 func that(ctx *dgc.Ctx) {
 	thatTable := fwew.GetThatTable()
-	const leftSize = 3
 	var output string
 	output += "```\n"
 
@@ -165,9 +172,9 @@ func that(ctx *dgc.Ctx) {
 }
 
 func cameronWords(ctx *dgc.Ctx) {
-	var output string = "- **A1 Names:** Akwey, Ateyo, Eytukan, Eywa," +
+	var output = "- **A1 Names:** Akwey, Ateyo, Eytukan, Eywa," +
 		" Mo'at, Na'vi, Newey, Neytiri, Ninat, Omatikaya," +
-		" Otranyu, Rongloa, Silwanin, Tskaha, Tsu'tey, Tsumongwi\n" +
+		" Otranyu, Rongloa, Silwanin, Tskaha, Tsu'tey\n" +
 		"- **A2 Names:** Aonung, Kiri, Lo'ak, Neteyam," +
 		" Ronal, Rotxo, Tonowari, Tuktirey, Tsireya\n" +
 		"- **Nouns:** 'itan, 'ite, atan, au *(drum)*, eyktan, i'en," +
@@ -179,7 +186,7 @@ func cameronWords(ctx *dgc.Ctx) {
 }
 
 // Helper function for phoneme_frequency
-func chart_entry(entry string, amount string, length int) (output string) {
+func chartEntry(entry string, amount string, length int) (output string) {
 	output = entry
 	for i := utf8.RuneCountInString(entry); i < length-utf8.RuneCountInString(amount); i++ {
 		output += " "
@@ -188,27 +195,39 @@ func chart_entry(entry string, amount string, length int) (output string) {
 	return output
 }
 
-// helper classes for phoneme_frequency
-type phoneme struct {
-	Freq int
-	Name string
-}
+func phonemeFrequency(ctx *dgc.Ctx) {
+	all_frequencies := fwew.GetPhonemeDistrosMap("en") // English only
 
-type phonemes []phoneme
+	results := "```\n"
 
-func (e phonemes) Len() int {
-	return len(e)
-}
-
-func (e phonemes) Less(i, j int) bool {
-	if e[i].Freq == e[j].Freq {
-		return e[i].Name < e[j].Name
+	for _, a := range all_frequencies[0] {
+		results += "|"
+		for _, b := range a {
+			entries := strings.Split(b, " ")
+			if len(entries) == 2 {
+				results += chartEntry(entries[0], entries[1], 8)
+			} else {
+				results += chartEntry("", b, 8)
+			}
+		}
+		results += "\n"
 	}
-	return e[i].Freq > e[j].Freq
-}
 
-func (e phonemes) Swap(i, j int) {
-	e[i], e[j] = e[j], e[i]
+	results += "\n" + all_frequencies[1][0][0] + ":\n"
+	all_frequencies[1][0][0] = ""
+
+	for _, a := range all_frequencies[1] {
+		newLine := ""
+		for _, b := range a {
+			newLine += chartEntry("", b, 3)
+		}
+		newLine = strings.TrimPrefix(newLine, " ")
+		results += newLine + "\n"
+	}
+
+	results += "```"
+
+	sendDiscordMessageEmbed(ctx, results, false)
 }
 
 func registerCommands(router *dgc.Router) {
@@ -350,15 +369,22 @@ func registerCommands(router *dgc.Router) {
 			}
 
 			argString := ""
+			collect := false
 			for i := 0; i < arguments.Amount(); i++ {
-				argString += arguments.Get(i).Raw() + " "
+				if collect {
+					argString += " "
+				} else if arguments.Get(i).Raw()[0] != '-' {
+					collect = true
+				} else {
+					continue
+				}
+				argString += arguments.Get(i).Raw()
 			}
-			argString = argString[:len(argString)-1]
 
 			var navi [][]fwew.Word
 
 			var err error
-			navi, err = fwew.BidirectionalSearch(argString, true, langCode)
+			navi, err = fwew.BidirectionalSearch(argString, true, langCode, false)
 			if err != nil {
 				sendDiscordMessageEmbed(ctx, fmt.Sprintf("Error translating: %s", err), true)
 			}
@@ -389,15 +415,11 @@ func registerCommands(router *dgc.Router) {
 			}()
 
 			// Don't run if firstArg is not set (we have nothing to do in that case)
-			firstArgTemp, b := ctx.CustomObjects.Get("firstArg")
+			_, b := ctx.CustomObjects.Get("firstArg")
 			if !b {
 				sendDiscordMessageEmbed(ctx, "Nothing found to translate!", true)
 				return
 			}
-
-			firstArg := firstArgTemp.(int)
-			amount := arguments.Amount() - firstArg
-			words := make([][]fwew.Word, amount)
 
 			langCode := ctx.CustomObjects.MustGet("langCode").(string)
 
@@ -405,22 +427,29 @@ func registerCommands(router *dgc.Router) {
 
 			// all params are words to search
 			argString := ""
+			collect := false
 			for i := 0; i < arguments.Amount(); i++ {
-				argString += arguments.Get(i).Raw() + " "
+				if collect {
+					argString += " "
+				} else if arguments.Get(i).Raw()[0] != '-' {
+					collect = true
+				} else {
+					continue
+				}
+				argString += arguments.Get(i).Raw()
 			}
-			argString = argString[:len(argString)-1]
 
 			var navi [][]fwew.Word
 			if ctx.CustomObjects.MustGet("reverse").(bool) {
 				navi = fwew.TranslateToNaviHash(argString, langCode)
 			} else {
 				var err error
-				navi, err = fwew.TranslateFromNaviHash(argString, false)
+				navi, err = fwew.TranslateFromNaviHash(argString, false, false, false)
 				if err != nil {
 					sendDiscordMessageEmbed(ctx, fmt.Sprintf("Error translating: %s", err), true)
 				}
 			}
-			words = navi
+			words := navi
 			wordFound = true
 
 			if wordFound {
@@ -438,10 +467,10 @@ func registerCommands(router *dgc.Router) {
 		},
 		Description: "Translate a number to Navi and vice-versa",
 		Usage: `number <number>
-<number>:
-  - an octal number to translate to Na'vi
-  - the Na'vi word of a number, to read the number
-`,
+				<number>:
+				- an octal number to translate to Na'vi
+				- the Na'vi word of a number, to read the number
+				`,
 		Example: "number 55",
 		Flags: []string{
 			"params",
@@ -471,13 +500,16 @@ func registerCommands(router *dgc.Router) {
 			// Parse number
 			arg := argument.Raw()
 
+			// Make sure numbers with commas can be processed
+			arg = strings.ReplaceAll(arg, ",", "")
+
 			// check if arg starts with number
-			var rune rune
+			var argRune rune
 			for _, r := range arg {
-				rune = r
+				argRune = r
 				break
 			}
-			if rune >= '0' && rune <= '9' {
+			if argRune >= '0' && argRune <= '9' {
 				// try to get number of it
 				argInt, err := strconv.ParseInt(arg, 0, 16)
 				if err != nil {
@@ -517,8 +549,9 @@ func registerCommands(router *dgc.Router) {
 		Description: "Show information about the params, that can be used with \"fwew\", \"list\" and \"random\"",
 		Handler: func(ctx *dgc.Ctx) {
 			info := "`fwew`, `list` and `random` can have additional optional parameters.\n" +
-				"  - `-l=<langCode>`: Set the language (de, en, et, fr, hu, nl, pl, ru, sv, tr). Default: en\n" +
+				"  - `-l=<langCode>`: Set the language (de, en, es, et, fr, hu, ko, nl, pl, pt, ru, sv, tr, uk). Default: en\n" +
 				"  - `-r`: `fwew` only param, that will mark the translation \"reversed\". If set, translation will be from locale to Na'vi\n" +
+				"  - `-reef`: Show Reef dialect information\n" +
 				"  - `-i`: Show Infix locations with brackets\n" +
 				"  - `-id=false`: Don't show infix dots\n" +
 				"  - `-src`: Show Source of this words\n" +
@@ -579,7 +612,7 @@ func registerCommands(router *dgc.Router) {
 		Handler:     shortLenition,
 	})
 
-	// command to show all possible thats
+	// command to show all possible "that"s
 	router.RegisterCmd(&dgc.Command{
 		Name:        "that",
 		Description: "Show all possible thats",
@@ -600,99 +633,37 @@ func registerCommands(router *dgc.Router) {
 		Name:        "phoneme-frequency",
 		Description: "Show how often a phoneme appears",
 		IgnoreCase:  true,
+		Handler:     phonemeFrequency,
+	})
+
+	// Tell the user if given word(s) are valid in Na'vi
+	router.RegisterCmd(&dgc.Command{
+		Name:        "valid",
+		Description: "See if a word would be valid in Na'vi",
+		Usage:       "valid <word>...\n<word>:\n  - A word to validate",
+		Example:     "valid omati s'ampta",
+		Flags: []string{
+			"params",
+		},
+		IgnoreCase:  true,
+		SubCommands: nil,
 		Handler: func(ctx *dgc.Ctx) {
-			all_frequencies := fwew.GetPhonemeDistrosMap()
-			entries := []string{"| Onset:|Nuclei:|Ending:|", "|=======|=======|=======|"}
+			arguments := ctx.Arguments
 
-			onset_letters := [21]string{"t", "", "n", "k", "l", "s", "'", "p", "r", "y",
-				"ts", "m", "tx", "v", "w", "h", "ng", "z", "kx", "px", "f"}
-			nucleus_letters := [14]string{"a", "e", "ì", "o", "u", "i", "ä", "aw", "ey", "ù", "rr", "ay", "ew", "ll"}
-			coda_letters := [13]string{"", "n", "m", "ng", "l", "k", "p", "'", "r", "t", "kx", "px", "tx"}
-
-			// Onsets
-			onset_tuples := []phoneme{}
-			for i := 0; i < len(onset_letters); i++ {
-				var a phoneme
-				a.Name = onset_letters[i]
-				a.Freq = all_frequencies["Others"]["Onsets"][onset_letters[i]]
-				onset_tuples = append(onset_tuples, a)
-			}
-
-			sort.Sort(phonemes(onset_tuples))
-
-			for i := 0; i < len(onset_tuples); i++ {
-				entries = append(entries, "|"+chart_entry(onset_tuples[i].Name, strconv.Itoa(onset_tuples[i].Freq), 7))
-			}
-
-			// Nuclei
-			nuclei_tuples := []phoneme{}
-			for i := 0; i < len(nucleus_letters); i++ {
-				var a phoneme
-				a.Name = nucleus_letters[i]
-				a.Freq = all_frequencies["Others"]["Nuclei"][nucleus_letters[i]]
-				nuclei_tuples = append(nuclei_tuples, a)
-			}
-
-			sort.Sort(phonemes(nuclei_tuples))
-
-			i := 2
-			for ; i < len(nuclei_tuples)+2; i++ {
-				entries[i] += chart_entry(nuclei_tuples[i-2].Name, strconv.Itoa(nuclei_tuples[i-2].Freq), 7)
-			}
-			for ; i < len(entries); i++ {
-				entries[i] += "       |"
-			}
-
-			// Ends
-			codaTuples := []phoneme{}
-			for i := 0; i < len(coda_letters); i++ {
-				var a phoneme
-				a.Name = coda_letters[i]
-				a.Freq = all_frequencies["Others"]["Codas"][coda_letters[i]]
-				codaTuples = append(codaTuples, a)
-			}
-
-			sort.Sort(phonemes(codaTuples))
-
-			i = 2
-			for ; i < len(codaTuples)+2; i++ {
-				entries[i] += chart_entry(codaTuples[i-2].Name, strconv.Itoa(codaTuples[i-2].Freq), 7)
-			}
-			for ; i < len(entries); i++ {
-				entries[i] += "       |"
-			}
-
-			// Top
-			//entries_2 = "## Phoneme distributions:\n```\n"
-			entries = append(entries, "")
-			entries = append(entries, "Clusters:")
-			entries = append(entries, "  | f:| s:|ts:|")
-			entries = append(entries, "==|===|===|===|")
-
-			// Clusters
-			cluster_starts := []string{"f", "s", "ts"}
-			cluster_ends := []string{"k", "kx", "l", "m", "n", "ng", "p", "px", "r", "t", "tx", "w", "y"}
-
-			for i := 0; i < len(cluster_ends); i++ {
-				entries = append(entries, chart_entry("", cluster_ends[i], 2))
-			}
-
-			// clusters
-			for i := 0; i < len(cluster_starts); i++ {
-				for j := 0; j < len(cluster_ends); j++ {
-					entries[j+len(entries)-len(cluster_ends)] += chart_entry("", strconv.Itoa(all_frequencies["Clusters"][cluster_starts[i]][cluster_ends[j]]), 3)
+			defer func() {
+				if err := recover(); err != nil {
+					sendErrorWhenRecovered(ctx)
 				}
+			}()
+
+			argString := ""
+			for i := 0; i < arguments.Amount(); i++ {
+				argString += arguments.Get(i).Raw() + " "
 			}
+			argString = argString[:len(argString)-1]
 
-			results := "```\n"
-
-			for i := 0; i < len(entries); i++ {
-				results += entries[i] + "\n"
-			}
-
-			results += "```"
-
-			sendDiscordMessageEmbed(ctx, results, false)
+			navi := fwew.IsValidNavi(argString, "en", true) // Not sure how to enable language support easily
+			sendDiscordMessageEmbed(ctx, navi, false)
 		},
 	})
 }

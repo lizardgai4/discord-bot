@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -48,7 +47,7 @@ func removeAllReactions(session *discordgo.Session) {
 
 func main() {
 	// load json config
-	jsonFile, err := ioutil.ReadFile("conf.json")
+	jsonFile, err := os.ReadFile("conf.json")
 	if err != nil {
 		panic(err)
 	}
@@ -65,13 +64,14 @@ func main() {
 	}
 
 	// Cache everything and assure the dictionary
-	fwew.StartEverything()
+	log.Print(fwew.StartEverything())
 
 	// cache fwew dictionary
-	err = fwew.CacheDictHash()
-	if err != nil {
-		panic(err)
-	}
+	// fwew.StartEverything() already does this
+	// err = fwew.CacheDictHash()
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	// create discord session
 	session, err := discordgo.New("Bot " + config.Token)
@@ -86,7 +86,7 @@ func main() {
 	}
 
 	// set custom status
-	err = session.UpdateStatus(0, "DM me to look up Na'vi words")
+	err = session.UpdateGameStatus(0, "DM me to look up Na'vi words")
 	if err != nil {
 		panic(err)
 	}
