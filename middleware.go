@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/knoxfighter/dgc"
@@ -73,7 +74,7 @@ func addMiddleware(router *dgc.Router) {
 
 			var nextLanguage, nextInfixDots, nextDashed bool
 			// read the real values from the user input
-			for i := 0; i < amount; i++ {
+			for i := range amount {
 				argument := ctx.Arguments.Get(i)
 				arg := argument.Raw()
 				if arg == "-r" {
@@ -110,16 +111,18 @@ func addMiddleware(router *dgc.Router) {
 					ctx.CustomObjects.Set("langCode", arg)
 					nextLanguage = false
 				} else if nextInfixDots {
-					if arg == "true" {
+					switch arg {
+					case "true":
 						ctx.CustomObjects.Set("showInfixDots", true)
-					} else if arg == "false" {
+					case "false":
 						ctx.CustomObjects.Set("showInfixDots", false)
 					}
 					nextInfixDots = false
 				} else if nextDashed {
-					if arg == "true" {
+					switch arg {
+					case "true":
 						ctx.CustomObjects.Set("showDashed", true)
-					} else if arg == "false" {
+					case "false":
 						ctx.CustomObjects.Set("showDashed", false)
 					}
 					nextDashed = false
@@ -157,13 +160,11 @@ func addMiddleware(router *dgc.Router) {
 				return
 			}
 
-			for _, role := range member.Roles {
-				if role == config.AdminRole {
-					// user is allowed to do it!
-					log.Printf("User is allowed to do that :)")
-					following(ctx)
-					return
-				}
+			if slices.Contains(member.Roles, config.AdminRole) {
+				// user is allowed to do it!
+				log.Printf("User is allowed to do that :)")
+				following(ctx)
+				return
 			}
 
 			sendDiscordMessageEmbed(ctx, "You are not allowed to use this command!", true)

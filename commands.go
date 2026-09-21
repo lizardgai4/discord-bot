@@ -79,96 +79,102 @@ func list(ctx *dgc.Ctx, firstArg int) {
 func lenition(ctx *dgc.Ctx) {
 	lenitionTable := fwew.GetLenitionTable()
 	const leftSize = 3
-	var output string
-	output += "```\n"
+	var output strings.Builder
+	output.WriteString("```\n")
 	for _, lenition := range lenitionTable {
-		output += "" + lenition[0]
+		output.WriteString("")
+		output.WriteString(lenition[0])
 		for i := len(lenition[0]); i < leftSize; i++ {
-			output += " "
+			output.WriteString(" ")
 		}
 		if lenition[1] == "" {
 			lenition[1] = "(disappears, except before ll or rr)"
 		}
-		output += "→ " + lenition[1] + "\n\n"
+		output.WriteString("→ ")
+		output.WriteString(lenition[1])
+		output.WriteString("\n\n")
 	}
-	output += "leniting prefixes: me+, pxe+, ay+, pe+\n"
-	output += "leniting adpositions: fpi, ìlä, lisre, mì, nuä, pxisre, ro, sko, sre, sru, wä\n"
-	output += "```"
-	sendDiscordMessageEmbed(ctx, output, false)
+	output.WriteString("leniting prefixes: me+, pxe+, ay+, pe+\n")
+	output.WriteString("leniting adpositions: fpi, ìlä, lisre, mì, nuä, pxisre, ro, sko, sre, sru, wä\n")
+	output.WriteString("```")
+	sendDiscordMessageEmbed(ctx, output.String(), false)
 }
 
 func shortLenition(ctx *dgc.Ctx) {
 	lenitionTable := fwew.GetShortLenitionTable()
 	const leftSize = 10
-	var output string
-	output += "```\n"
+	var output strings.Builder
+	output.WriteString("```\n")
 	for _, lenition := range lenitionTable {
 		for i := len(lenition[0]); i < leftSize; i++ {
-			output += " "
+			output.WriteString(" ")
 		}
-		output += "" + lenition[0]
+		output.WriteString("")
+		output.WriteString(lenition[0])
 		if lenition[1] == "" {
 			lenition[1] = "(disappears, except before ll or rr)"
 		}
-		output += " → " + lenition[1] + "\n\n"
+		output.WriteString(" → ")
+		output.WriteString(lenition[1])
+		output.WriteString("\n\n")
 	}
-	output += "leniting prefixes: me+, pxe+, ay+, pe+\n"
-	output += "leniting adpositions: fpi, ìlä, lisre, mì, nuä, pxisre, ro, sko, sre, sru, wä\n"
-	output += "```"
-	sendDiscordMessageEmbed(ctx, output, false)
+	output.WriteString("leniting prefixes: me+, pxe+, ay+, pe+\n")
+	output.WriteString("leniting adpositions: fpi, ìlä, lisre, mì, nuä, pxisre, ro, sko, sre, sru, wä\n")
+	output.WriteString("```")
+	sendDiscordMessageEmbed(ctx, output.String(), false)
 }
 
 func that(ctx *dgc.Ctx) {
 	thatTable := fwew.GetThatTable()
-	var output string
-	output += "```\n"
+	var output strings.Builder
+	output.WriteString("```\n")
 
 	//Get column widths
 	var lengths = [len(thatTable[2])]int{0, 0, 0, 0, 0}
-	for j := 0; j < len(thatTable[2]); j++ {
+	for j := range len(thatTable[2]) {
 		lengths[j] = len(thatTable[2][j])
 	}
 
 	for _, that := range thatTable {
-		for i := 0; i < len(that); i++ {
+		for i := range len(that) {
 			var word = that[i]
 			if len(word) > 0 {
-				output += word
+				output.WriteString(word)
 				for j := len(word); j < lengths[i]; j++ {
-					output += " "
+					output.WriteString(" ")
 				}
-				output += "|"
+				output.WriteString("|")
 			}
 		}
-		output += "\n"
+		output.WriteString("\n")
 	}
 
-	output += "\n"
+	output.WriteString("\n")
 
 	otherThats := fwew.GetOtherThats()
 
 	//The other ones that don't fit on the chart
 	var lineNum = 7
 	var lengths2 = [len(otherThats[lineNum])]int{0, 0, 0}
-	for j := 0; j < len(otherThats[lineNum]); j++ {
-		lengths2[j] = utf8.RuneCountInString(otherThats[lineNum][j])
+	for j, ourThat := range otherThats[lineNum] {
+		lengths2[j] = utf8.RuneCountInString(ourThat)
 	}
 
 	for _, that := range otherThats {
-		for i := 0; i < len(that); i++ {
-			var word = that[i]
+		for i, ourThat := range that {
+			var word = ourThat
 			if utf8.RuneCountInString(word) > 0 {
-				output += word
+				output.WriteString(word)
 				for j := utf8.RuneCountInString(word); j <= lengths2[i]; j++ {
-					output += " "
+					output.WriteString(" ")
 				}
 			}
 		}
-		output += "\n"
+		output.WriteString("\n")
 	}
 
-	output += "```"
-	sendDiscordMessageEmbed(ctx, output, false)
+	output.WriteString("```")
+	sendDiscordMessageEmbed(ctx, output.String(), false)
 }
 
 func cameronWords(ctx *dgc.Ctx) {
@@ -198,22 +204,25 @@ func chartEntry(entry string, amount string, length int) (output string) {
 func phonemeFrequency(ctx *dgc.Ctx) {
 	all_frequencies := fwew.GetPhonemeDistrosMap("en") // English only
 
-	results := "```\n"
+	var results strings.Builder
+	results.WriteString("```\n")
 
 	for _, a := range all_frequencies[0] {
-		results += "|"
+		results.WriteString("|")
 		for _, b := range a {
 			entries := strings.Split(b, " ")
 			if len(entries) == 2 {
-				results += chartEntry(entries[0], entries[1], 8)
+				results.WriteString(chartEntry(entries[0], entries[1], 8))
 			} else {
-				results += chartEntry("", b, 8)
+				results.WriteString(chartEntry("", b, 8))
 			}
 		}
-		results += "\n"
+		results.WriteString("\n")
 	}
 
-	results += "\n" + all_frequencies[1][0][0] + ":\n"
+	results.WriteString("\n")
+	results.WriteString(all_frequencies[1][0][0])
+	results.WriteString(":\n")
 	all_frequencies[1][0][0] = ""
 
 	for _, a := range all_frequencies[1] {
@@ -222,12 +231,13 @@ func phonemeFrequency(ctx *dgc.Ctx) {
 			newLine += chartEntry("", b, 3)
 		}
 		newLine = strings.TrimPrefix(newLine, " ")
-		results += newLine + "\n"
+		results.WriteString(newLine)
+		results.WriteString("\n")
 	}
 
-	results += "```"
+	results.WriteString("```")
 
-	sendDiscordMessageEmbed(ctx, results, false)
+	sendDiscordMessageEmbed(ctx, results.String(), false)
 }
 
 func registerCommands(router *dgc.Router) {
@@ -368,23 +378,23 @@ func registerCommands(router *dgc.Router) {
 				//continue
 			}
 
-			argString := ""
+			var argString strings.Builder
 			collect := false
 			for i := 0; i < arguments.Amount(); i++ {
 				if collect {
-					argString += " "
+					argString.WriteString(" ")
 				} else if arguments.Get(i).Raw()[0] != '-' {
 					collect = true
 				} else {
 					continue
 				}
-				argString += arguments.Get(i).Raw()
+				argString.WriteString(arguments.Get(i).Raw())
 			}
 
 			var navi [][]fwew.Word
 
 			var err error
-			navi, err = fwew.BidirectionalSearch(argString, true, langCode, false)
+			navi, err = fwew.BidirectionalSearch(argString.String(), true, langCode, false)
 			if err != nil {
 				sendDiscordMessageEmbed(ctx, fmt.Sprintf("Error translating: %s", err), true)
 			}
@@ -426,25 +436,25 @@ func registerCommands(router *dgc.Router) {
 			var wordFound bool
 
 			// all params are words to search
-			argString := ""
+			var argString strings.Builder
 			collect := false
 			for i := 0; i < arguments.Amount(); i++ {
 				if collect {
-					argString += " "
+					argString.WriteString(" ")
 				} else if arguments.Get(i).Raw()[0] != '-' {
 					collect = true
 				} else {
 					continue
 				}
-				argString += arguments.Get(i).Raw()
+				argString.WriteString(arguments.Get(i).Raw())
 			}
 
 			var navi [][]fwew.Word
 			if ctx.CustomObjects.MustGet("reverse").(bool) {
-				navi = fwew.TranslateToNaviHash(argString, langCode)
+				navi = fwew.TranslateToNaviHash(argString.String(), langCode)
 			} else {
 				var err error
-				navi, err = fwew.TranslateFromNaviHash(argString, false, false, false)
+				navi, err = fwew.TranslateFromNaviHash(argString.String(), false, false, false)
 				if err != nil {
 					sendDiscordMessageEmbed(ctx, fmt.Sprintf("Error translating: %s", err), true)
 				}
